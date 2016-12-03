@@ -1,62 +1,82 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, TypeSynonymInstances, FlexibleInstances, GADTs, RankNTypes, MultiParamTypeClasses, FunctionalDependencies #-}
 
 module Hfm ( search
-           , getSearch
+           , bfs
+           , dfs
+           , Path
+           , BFS
+           , Graph
+           , SearchGraph
+           , SearchFn
 ) where
 
 import Data.Map as M
 
-type State = Int
-type Path = ([Move], State)
+type Path = ([Int], Int)
 type Frontier = [Path]
-type Move = State
-type Graph = M.Map State [State]
+type Graph = M.Map Int [Int]
+type Search = (Int -> Bool) -> [Int] -> Frontier -> Maybe (Path)
 
-type Search = (State -> Bool) -> [State] -> Frontier -> Maybe Path
+-- a bit of GADTs :-)
+data SearchGraph sf where
+  SearchGraph :: sf -> Graph -> SearchGraph sf
+  
+class IsNode n where
+  
+instance Show (SearchGraph sf) where
+  show (SearchGraph sf grph) = show grph
 
-neighbors :: Graph -> State -> [State]
-neighbors grph st = undefined
+instance (IsSearch sf) => IsSearch (SearchGraph sf) where
+  getSearch (SearchGraph sf grph) = getSearch sf
 
-newSearch :: Graph -> (Frontier -> Graph -> Frontier) -> Search
+instance (SearchFn sf) => SearchFn (SearchGraph sf)
+
+-- class of searchable algorithms
+class IsSearch a where
+  getSearch :: a -> Search
+  
+class (IsSearch a) => SearchFn a where
+  search :: a -> (Int -> Bool) -> Int -> Maybe (Path)
+  search a checkF n = (getSearch a) checkF [] [([], n)]
+
+
+instance IsSearch (Search) where
+  getSearch = id
+  
+instance SearchFn (Search)
+
+-- neighbors of a node in a graph
+neighbors :: Graph -> Int -> [Int]
+neighbors grph n = M.findWithDefault [] n grph
+
+newSearch :: Graph -> (Path -> Frontier -> Graph -> Frontier) -> Search
 newSearch grph succF = auxSearchF
   where
     auxSearchF :: Search
-    auxSearchF checkF sts [] = Nothing
-    auxSearchF checkF sts (ftr@(mvs, st):ftrs)
-      | checkF st     = Just (mvs, st)
-      | st `elem` sts = auxSearchF checkF (st:sts) ftrs
-      | otherwise     = auxSearchF checkF (st:sts) (succF ftrs grph)
+    auxSearchF checkF ns [] = Nothing
+    auxSearchF checkF ns (ftr@(mvs, n):ftrs)
+      | checkF n      = Just (mvs, n)
+      | n `elem` ns   = auxSearchF checkF (ns) ftrs
+      | otherwise     = auxSearchF checkF (n:ns) (succF ftr ftrs grph)
       
 -- bfs action type
 newtype BFS = BFS { unBFS :: Search } deriving (IsSearch, SearchFn)
 -- create a new bfs action
-newBFS :: Graph -> BFS
-newBFS grph = BFS . newSearch grph $ succF
+newBFS :: Graph -> SearchGraph BFS
+newBFS grph = SearchGraph (BFS . newSearch grph $ succF) grph
   where
-    succF :: Frontier -> Graph -> Frontier
-    succF (ftr@(mvs, fst):ftrs) grph = ftrs ++ [((mvs++[fst]), newFst) | newFst <- neighbors grph fst]
+    succF :: Path -> Frontier -> Graph -> Frontier
+    succF path@(ns, n) ftrs g = ftrs ++ [((ns++[n]), n8br) | n8br <- neighbors g n]
 
 -- dfs action type
 newtype DFS = DFS { unDFS :: Search } deriving (IsSearch, SearchFn)
 -- create a new dfs action
-newDFS :: Graph -> DFS
-newDFS grph = DFS . newSearch grph $ succF
+newDFS :: Graph -> SearchGraph DFS
+newDFS grph = SearchGraph (DFS . newSearch grph $ succF) grph
   where
-    succF :: Frontier -> Graph -> Frontier
-    succF (ftr@(mvs, fst):ftrs) grph = ftrs ++ [((mvs++[fst]), newFst) | newFst <- neighbors grph fst]
+    succF :: Path -> Frontier -> Graph -> Frontier
+    succF path@(ns, n) ftrs g = [((ns++[n]), n8br) | n8br <- neighbors g n] ++ ftrs
     
--- class of searchable actions
-class IsSearch a where
-  getSearch :: a -> Search
-
-instance IsSearch Search where
-  getSearch = id
-    
-instance SearchFn Search
+dfs = newDFS
+bfs = newBFS
   
-class (IsSearch a) => SearchFn a where
-  search :: (State -> Bool) -> a -> State -> Maybe Path
-  search checkF act st = (getSearch act) checkF [] [([], st)]
-  
-main :: IO()
-main = putStrLn "Hellow World"
