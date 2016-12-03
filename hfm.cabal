@@ -4,6 +4,8 @@ cabal-version: >=1.20
 build-type: Simple
 license: AllRightsReserved
 stability: experimental
+description:
+    d
 x-ghc-framework-version: 7.10.3-5.18-1
 x-last-ide-version: HfM1.3.0
 Executable hfm

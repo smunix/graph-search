@@ -1,0 +1,3 @@
+-- Haskell Playground 1.0
+pathGraph (1,9) H.bfs
+pathGraph (1,9) H.dfs

@@ -1,0 +1,41 @@
+-- Haskell Playground 1.0
+let gph = M.fromList [(1, [2, 3, 4]), (2, [4]), (3, [5]), (4, [8]), (5, [7, 8]), (8, [9])]
+
+let bfs = newBFS gph
+let dfs = newDFS gph
+
+search bfs (== 1) 1
+search bfs (== 2) 1
+search bfs (== 3) 1
+search bfs (== 9) 1
+
+let path (s, d) algo = search algo (== d) s
+path (1, 9) bfs
+path (1, 9) dfs 
+
+neighbors gph 1
+
+let { bSuccT :: Frontier -> Graph -> Frontier
+    ; bSuccT (p@(nodes, n):ftrs) g = (bSuccT ftrs g) ++[(nodes++[n], n8br) | n8br <- neighbors g n] 
+    ; bSuccT [] g = []
+    }
+    
+let { dSuccT :: Frontier -> Graph -> Frontier
+    ; dSuccT (p@(nodes, n):ftrs) g = [(nodes++[n], n8br) | n8br <- neighbors g n] ++ (dSuccT ftrs g)
+    ; dSuccT [] g = []
+    }
+
+let  { replicateSuccT :: Int -> (Frontier -> Graph -> Frontier) -> Frontier -> Graph -> Frontier
+      ; replicateSuccT 0 _ ftr g = ftr
+      ; replicateSuccT _ _ [] _ = []
+      ; replicateSuccT n nextF ftier g = replicateSuccT (n-1) nextF (nextF ftier g) g 
+      }
+      
+replicateSuccT 1 bSuccT [([], 1)] gph
+replicateSuccT 1 dSuccT [([], 1)] gph
+
+replicateSuccT 2 bSuccT [([], 1)] gph
+replicateSuccT 2 dSuccT [([], 1)] gph
+
+replicateSuccT 3 bSuccT [([], 1)] gph
+replicateSuccT 3 dSuccT [([], 1)] gph
