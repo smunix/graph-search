@@ -1,31 +1,43 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, TypeSynonymInstances, FlexibleInstances #-}
 
 module Hfm ( search
-           , getSearch
 ) where
 
 import Data.Map as M
 
-type State = Int
-type Path = ([Move], State)
+type Node = Int
+type Move = Node
+type Path = ([Move], Node)
 type Frontier = [Path]
-type Move = State
-type Graph = M.Map State [State]
+type Graph = M.Map Node [Node]
+type Search = (Node -> Bool) -> [Node] -> Frontier -> Maybe Path
+  
+-- class of searchable actions
+class IsSearch a where
+  getSearch :: a -> Search
 
-type Search = (State -> Bool) -> [State] -> Frontier -> Maybe Path
+instance IsSearch Search where
+  getSearch = id
+    
+instance SearchFn Search
+  
+class (IsSearch a) => SearchFn a where
+  search :: (Node -> Bool) -> a -> Node -> Maybe Path
+  search checkF act n = (getSearch act) checkF [] [([], n)]
 
-neighbors :: Graph -> State -> [State]
-neighbors grph st = undefined
+-- neighbors of a node in a graph
+neighbors :: Graph -> Node -> [Node]
+neighbors grph n = undefined
 
 newSearch :: Graph -> (Frontier -> Graph -> Frontier) -> Search
 newSearch grph succF = auxSearchF
   where
     auxSearchF :: Search
-    auxSearchF checkF sts [] = Nothing
-    auxSearchF checkF sts (ftr@(mvs, st):ftrs)
-      | checkF st     = Just (mvs, st)
-      | st `elem` sts = auxSearchF checkF (st:sts) ftrs
-      | otherwise     = auxSearchF checkF (st:sts) (succF ftrs grph)
+    auxSearchF checkF ns [] = Nothing
+    auxSearchF checkF ns (ftr@(mvs, n):ftrs)
+      | checkF n     = Just (mvs, n)
+      | n `elem` ns = auxSearchF checkF (n:ns) ftrs
+      | otherwise     = auxSearchF checkF (n:ns) (succF ftrs grph)
       
 -- bfs action type
 newtype BFS = BFS { unBFS :: Search } deriving (IsSearch, SearchFn)
@@ -44,19 +56,4 @@ newDFS grph = DFS . newSearch grph $ succF
   where
     succF :: Frontier -> Graph -> Frontier
     succF (ftr@(mvs, fst):ftrs) grph = ftrs ++ [((mvs++[fst]), newFst) | newFst <- neighbors grph fst]
-    
--- class of searchable actions
-class IsSearch a where
-  getSearch :: a -> Search
-
-instance IsSearch Search where
-  getSearch = id
-    
-instance SearchFn Search
   
-class (IsSearch a) => SearchFn a where
-  search :: (State -> Bool) -> a -> State -> Maybe Path
-  search checkF act st = (getSearch act) checkF [] [([], st)]
-  
-main :: IO()
-main = putStrLn "Hellow World"
